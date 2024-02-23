@@ -30,9 +30,9 @@ class WriteBack:
         self.__action_buffer.append(action)
 
     def write(self):
-        action_buff = self.__action_buffer
-
-        for _ in range(len(action_buff)):
-            action = action_buff.popleft()
-            print(f"write-back: Writing {registers.Registers(action.reg).name} <- {action.data}")
-            self.__register_file.set_register_value(action.reg, action.data)
+        if len(self.__action_buffer) == 0:
+            return
+        
+        action = self.__action_buffer.popleft()
+        print(f"write-back: Writing {registers.Registers(action.reg).name} <- {action.data}")
+        self.__register_file.set_register_value(action.reg, action.data)

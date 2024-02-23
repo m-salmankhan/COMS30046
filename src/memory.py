@@ -78,24 +78,26 @@ class Memory:
         self.add_memory_action(memory_action)
 
     def exec_memory_actions(self):
-        for _ in range(len(self.__action_buffer)):
-            action = self.__action_buffer.popleft()
+        if len(self.__action_buffer) == 0:
+            return
 
-            address = action.address
-            data = action.data
-            reg = action.register
+        action = self.__action_buffer.popleft()
 
-            # if loading data from memory to register
-            if reg is not None:
-                print(f"memory: Queue {registers.Registers(reg).name} <- {self.get(address)}")
+        address = action.address
+        data = action.data
+        reg = action.register
 
-                write_back_action = writeback.WriteBackAction(reg=reg, data=self.get(address))
-                self.__write_back.prepare_write(write_back_action)
+        # if loading data from memory to register
+        if reg is not None:
+            print(f"memory: Queue {registers.Registers(reg).name} <- {self.get(address)}")
 
-            # if storing data from register to memory
-            else:
-                print(f"memory: MEM[{address}] <- {data}")
-                self.set(address, data)
+            write_back_action = writeback.WriteBackAction(reg=reg, data=self.get(address))
+            self.__write_back.prepare_write(write_back_action)
+
+        # if storing data from register to memory
+        else:
+            print(f"memory: MEM[{address}] <- {data}")
+            self.set(address, data)
 
 
 # REG[dest] = MEM[REG[base] + REG[offset]]
