@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import List, Callable
+from collections import deque
+from typing import List, Callable, Deque
 
 import base_instruction
 import registers
@@ -49,7 +50,7 @@ class Memory:
             self.__register_file = register_file
             self.__write_back = write_back
 
-            self.__action_buffer: MemoryAction | None = None
+            self.__action_buffer: Deque[MemoryAction] = deque()
             self.__instruction: None | BaseMemoryInstruction = None
 
     # Get address in memory
@@ -64,44 +65,37 @@ class Memory:
         self.__instruction = instruction
 
     def add_memory_action(self, action: MemoryAction):
-        self.__action_buffer = action
-
-    class ExecuteResults:
-        def __init__(self, parent: "Memory", mem_action: MemoryAction | None):
-            self.__parent = parent
-            self.__action = mem_action
-
-        def apply(self):
-            if self.__action is not None:
-                self.__parent.add_memory_action(self.__action)
-
-    class MemoryActionResult:
-        def __init__(self, callback: Callable):
-            self.apply = callback
+        self.__action_buffer.append(action)
 
     def execute(self):
         if self.__instruction is None:
             return
 
+        print(f"execute: {self.__instruction}")
+
         memory_action = self.__instruction.execute(self.__register_file, self)
         self.__instruction = None
-        return self.ExecuteResults(self, memory_action)
+        self.add_memory_action(memory_action)
 
     def exec_memory_actions(self):
-        if self.__action_buffer is not None:
-            address = self.__action_buffer.address
-            data = self.__action_buffer.data
-            reg = self.__action_buffer.register
+        for _ in range(len(self.__action_buffer)):
+            action = self.__action_buffer.popleft()
+
+            address = action.address
+            data = action.data
+            reg = action.register
 
             # if loading data from memory to register
             if reg is not None:
+                print(f"memory: Queue {registers.Registers(reg).name} <- {self.get(address)}")
+
                 write_back_action = writeback.WriteBackAction(reg=reg, data=self.get(address))
-                self.__action_buffer = None
-                return self.MemoryActionResult(lambda: self.__write_back.prepare_write(write_back_action))
+                self.__write_back.prepare_write(write_back_action)
 
             # if storing data from register to memory
             else:
-                return self.MemoryActionResult(lambda: self.set(address, data))
+                print(f"memory: MEM[{address}] <- {data}")
+                self.set(address, data)
 
 
 # REG[dest] = MEM[REG[base] + REG[offset]]

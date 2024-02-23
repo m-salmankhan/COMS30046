@@ -74,45 +74,36 @@ class Control:
         # instruction to be executed in "execute" stage
         self.__instruction: BaseControlInstruction | None = None
 
-    class DecodeResults:
-        def __init__(self, callback: Callable):
-            self.apply = callback
-
-    class FetchResults:
-        def __init__(self, parent: "Control", new_pc: int, new_ir: base_instruction.BaseInstruction):
-            self.__new_pc = new_pc
-            self.__new_ir = new_ir
-            self.__parent = parent
-
-        def apply(self):
-            self.__parent.update_ir(self.__new_ir)
-            self.__parent.update_pc(self.__new_pc)
-
-    def instruction_fetch(self) -> FetchResults | None:
+    def instruction_fetch(self) -> None:
         if self.halt_status == 1:
             print("HALTED")
             return
 
-        addr = self.__program_counter
-        instruction = self.__memory.get(addr)
+        print(f"fetch: {self.__program_counter}")
 
-        return self.FetchResults(self, addr + 1, instruction)
+        current_addr = self.__program_counter
+        instruction = self.__memory.get(current_addr)
 
-    def decode(self) -> None | DecodeResults:
+        self.update_ir(instruction)
+        self.update_pc(current_addr+1)
+
+    def decode(self) -> None:
         instruction = self.__instruction_register
 
         if instruction is None:
             return
 
+        print(f"decoding: {instruction}")
+
         if not isinstance(instruction, base_instruction.BaseInstruction):
             raise Exception("Encountered data (not instruction) within PC address")
 
         if isinstance(instruction, alu.BaseALUInstruction):
-            return self.DecodeResults(lambda: self.__ALU.give_instruction(instruction))
+            return self.__ALU.give_instruction(instruction)
         elif isinstance(instruction, memory.BaseMemoryInstruction):
-            return self.DecodeResults(lambda: self.__memory.give_instruction(instruction))
+            return self.__memory.give_instruction(instruction)
         elif isinstance(instruction, BaseControlInstruction):
-            return self.DecodeResults(lambda: self.give_instruction(instruction))
+            return self.give_instruction(instruction)
         else:
             raise Exception(f"No unit exists to execute instructions of type {type(instruction)}.")
 
@@ -125,21 +116,16 @@ class Control:
     def give_instruction(self, instruction: BaseControlInstruction):
         self.__instruction = instruction
 
-    class ExecuteResults:
-        def __init__(self, parent: "Control", new_pc: int | None, new_halt: int | None):
-            self.pc = new_pc
-            self.halt = new_halt
-            self.__parent = parent
-
-        def apply(self):
-            if self.pc is not None:
-                self.__parent.update_pc(self.pc)
-            if self.halt is not None:
-                self.__parent.halt_status = self.halt
-
-    def execute(self) -> ExecuteResults | None:
+    def execute(self) -> Tuple[bool, bool]:
         if self.__instruction is None:
-            return
+            return False, False
+        print(f"execute: {self.__instruction}")
         new_pc, new_halt = self.__instruction.execute(self.__register_file)
         self.__instruction = None
-        return self.ExecuteResults(self, new_pc, new_halt)
+
+        if new_pc is not None:
+            self.update_pc(new_pc)
+        if new_halt is not None:
+            self.halt_status = new_halt
+
+        return (new_pc is not None), (new_halt is not None)

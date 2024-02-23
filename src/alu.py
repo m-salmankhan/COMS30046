@@ -257,19 +257,10 @@ class ALU:
     def give_instruction(self, instruction: BaseALUInstruction):
         self.__instruction = instruction
 
-    class ExecuteResults:
-        def __init__(self, writeback: writeback.WriteBack, wb_action: writeback.WriteBackAction | None):
-            self.__wb_action = wb_action
-            self.__wb = writeback
-
-        def apply(self):
-            if self.__wb_action is not None:
-                self.__wb.prepare_write(self.__wb_action)
-
     def execute(self):
         if self.__instruction is None:
             return
-
+        print(f"execute: {self.__instruction}")
         write_back_action = self.__instruction.execute(self.__register_file)
         self.__instruction = None
-        return self.ExecuteResults(self.__write_back, write_back_action)
+        self.__write_back.prepare_write(write_back_action)

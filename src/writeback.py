@@ -1,3 +1,6 @@
+from collections import deque
+from typing import Deque
+
 import registers
 
 
@@ -21,26 +24,15 @@ class WriteBack:
         if not hasattr(self, "_initialised"):
             self._initialised = True
             self.__register_file = registers.RegisterFile()
-            self.__action_buffer = None
+            self.__action_buffer: Deque[WriteBackAction] = deque()
 
     def prepare_write(self, action: WriteBackAction):
-        self.__action_buffer = action
-
-    class WriteResults:
-        def __init__(self, register_file: registers.RegisterFile, register: registers.Registers, data: int):
-            self.__register_file = register_file
-            self.__register = register
-            self.__data = data
-
-        def apply(self):
-            self.__register_file.set_register_value(self.__register, self.__data)
+        self.__action_buffer.append(action)
 
     def write(self):
-        if self.__action_buffer is not None:
-            results = self.WriteResults(self.__register_file, self.__action_buffer.reg, self.__action_buffer.data)
-            self.__action_buffer = None
-            return results
+        action_buff = self.__action_buffer
 
-        else:
-            pass
-            # print("Nothing to write to registers")
+        for _ in range(len(action_buff)):
+            action = action_buff.popleft()
+            print(f"write-back: Writing {registers.Registers(action.reg).name} <- {action.data}")
+            self.__register_file.set_register_value(action.reg, action.data)
