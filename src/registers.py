@@ -41,6 +41,7 @@ class RegisterFile:
             print(f"{name} \t {val}")
 
     def get_register_value(self, register: Registers) -> int:
+        print(f"getting register {Registers(register).name} at index {register}")
         return self.__registers[register]
 
     def set_register_value(self, register: Registers, new_val: int):

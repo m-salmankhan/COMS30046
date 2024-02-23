@@ -9,92 +9,55 @@ import base_instruction
 
 class BaseControlInstruction(base_instruction.BaseInstruction):
     @abstractmethod
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[None | int, None | int]:
+    def execute(self, register_file: registers.RegisterFile) -> Tuple[None | int, None | int]:
         pass
-
-
-class JumpRelative(base_instruction.BaseInstruction):
-    def __init__(self, location: registers.Registers):
-        self.__loc = location
-
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[int, None]:
-        return register_file.get_register_value(self.__loc) + pc_value, None
 
 
 class JumpAbsolute(BaseControlInstruction):
     def __init__(self, location: registers.Registers):
         self.__loc = location
 
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[int, None]:
+    def execute(self, register_file: registers.RegisterFile) -> Tuple[int, None]:
         return register_file.get_register_value(self.__loc), None
-
-
-class JumpRelativeImmediate(BaseControlInstruction):
-    def __init__(self, location: int):
-        self.__loc = location
-
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[int, None]:
-        return self.__loc + pc_value, None
 
 
 class JumpAbsoluteImmediate(BaseControlInstruction):
     def __init__(self, location: int):
         self.__loc = location
 
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[int, None]:
+    def execute(self, register_file: registers.RegisterFile) -> Tuple[int, None]:
         return self.__loc, None
 
 
-class BranchRelativeTrue(BaseControlInstruction):
-    def __init__(self, location: registers.Registers, condition: registers.Registers):
-        self.__loc = location
-        self.__cond = condition
-
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[int, None]:
-        if register_file.get_register_value(self.__cond):
-            return register_file.get_register_value(self.__loc) + pc_value, None
-
-
-class BranchRelativeTrueImmediate(BaseControlInstruction):
-    def __init__(self, location: int, condition: registers.Registers):
-        self.__loc = location
-        self.__cond = condition
-
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[int, None]:
-        if register_file.get_register_value(self.__cond):
-            return self.__loc + pc_value, None
-
-
 class BranchAbsoluteTrue(BaseControlInstruction):
-    def __init__(self, location: registers.Registers, cond: registers.Registers):
+    def __init__(self, cond: registers.Registers, location: registers.Registers):
         self.__loc = location
         self.__cond = cond
 
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[int, None]:
+    def execute(self, register_file: registers.RegisterFile) -> Tuple[None | int, None]:
         if register_file.get_register_value(self.__cond):
-            return register_file.get_register_value(self.__loc) + pc_value, None
+            return register_file.get_register_value(self.__loc), None
+        return None, None
 
 
 class BranchAbsoluteTrueImmediate(BaseControlInstruction):
-    def __init__(self, location: int, cond: registers.Registers):
+    def __init__(self, cond: registers.Registers, location: int):
         self.__loc = location
         self.__cond = cond
 
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[int, None]:
+    def execute(self, register_file: registers.RegisterFile) -> Tuple[None | int, None]:
         if register_file.get_register_value(self.__cond):
-            return self.__loc + pc_value, None
+            return self.__loc, None
+        return None, None
 
 
 class Halt(BaseControlInstruction):
-    def __init__(self, status: registers.Registers):
-        self.__status = status
-
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[None, int]:
-        return None, register_file.get_register_value(self.__status)
+    def execute(self, register_file: registers.RegisterFile) -> Tuple[None, int]:
+        return None, 1
 
 
 class NoOp(BaseControlInstruction):
-    def execute(self, register_file: registers.RegisterFile, pc_value: int) -> Tuple[None, None]:
+    def execute(self, register_file: registers.RegisterFile) -> Tuple[None, None]:
         return None, None
 
 
@@ -156,7 +119,7 @@ class Control:
     def update_pc(self, new_val: int):
         self.__program_counter = new_val
 
-    def update_ir(self, inst: base_instruction.BaseInstruction):
+    def update_ir(self, inst: base_instruction.BaseInstruction | None):
         self.__instruction_register = inst
 
     def give_instruction(self, instruction: BaseControlInstruction):
@@ -164,19 +127,19 @@ class Control:
 
     class ExecuteResults:
         def __init__(self, parent: "Control", new_pc: int | None, new_halt: int | None):
-            self.__pc = new_pc
-            self.__halt = new_halt
+            self.pc = new_pc
+            self.halt = new_halt
             self.__parent = parent
 
         def apply(self):
-            if self.__pc is not None:
-                self.__parent.update_pc(self.__pc)
-            if self.__halt is not None:
-                self.__parent.halt_status = self.__halt
+            if self.pc is not None:
+                self.__parent.update_pc(self.pc)
+            if self.halt is not None:
+                self.__parent.halt_status = self.halt
 
     def execute(self) -> ExecuteResults | None:
         if self.__instruction is None:
             return
-        new_pc, new_halt = self.__instruction.execute(self.__register_file, self.__program_counter)
+        new_pc, new_halt = self.__instruction.execute(self.__register_file)
         self.__instruction = None
         return self.ExecuteResults(self, new_pc, new_halt)

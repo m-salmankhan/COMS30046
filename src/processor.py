@@ -84,18 +84,30 @@ class Processor:
             write_back_results = self.write_back.write()
 
             # Apply results
-            if fetch_results is not None:
-                fetch_results.apply()
-            if decode_results is not None:
-                decode_results.apply()
+            # only apply decoded changes if the instruction that finished executing wasn't a branch
+            # if it's a branch, the decoded instruction needs to be discarded.
+            if control_execute_results is None or control_execute_results.pc is None:
+                if fetch_results is not None:
+                    fetch_results.apply()
+
+                if decode_results is not None:
+                    decode_results.apply()
+            else:
+                # clean decode unit of instruction that it was about to decode
+                self.control_unit.update_ir(None)
+
             if control_execute_results is not None:
                 control_execute_results.apply()
+
             if alu_execute_results is not None:
                 alu_execute_results.apply()
+
             if memory_execute_results is not None:
                 memory_execute_results.apply()
+
             if memory_results is not None:
                 memory_results.apply()
+
             if write_back_results is not None:
                 write_back_results.apply()
 

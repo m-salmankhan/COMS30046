@@ -136,6 +136,18 @@ class Parser:
                                                      num_immediate=1)
             return instructions.Instructions.MULTIPLY_IMMEDIATE.value[1](dest, op1, op2)
 
+        if instruction == instructions.Instructions.GREATER_THAN.value[0]:
+            [dest, op1, op2] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=3)
+            return instructions.Instructions.GREATER_THAN.value[1](dest, op1, op2)
+
+        if instruction == instructions.Instructions.LESSER_THAN.value[0]:
+            [dest, op1, op2] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=3)
+            return instructions.Instructions.LESSER_THAN.value[1](dest, op1, op2)
+
+        if instruction == instructions.Instructions.EQUAL_TO.value[0]:
+            [dest, op1, op2] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=3)
+            return instructions.Instructions.EQUAL_TO.value[1](dest, op1, op2)
+
         if instruction == instructions.Instructions.LEFT_SHIFT.value[0]:
             [dest, op1, op2] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=3)
             return instructions.Instructions.LEFT_SHIFT.value[1](dest, op1, op2)
@@ -158,10 +170,6 @@ class Parser:
             [dest, op1, op2] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=3)
             return instructions.Instructions.DIVISION.value[1](dest, op1, op2)
 
-        if instruction == instructions.Instructions.JUMP_RELATIVE.value[0]:
-            [offset] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=1)
-            return instructions.Instructions.JUMP_RELATIVE.value[1](offset)
-
         if instruction == instructions.Instructions.JUMP_ABSOLUTE.value[0]:
             [addr] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=1)
             return instructions.Instructions.JUMP_ABSOLUTE.value[1](addr)
@@ -170,25 +178,13 @@ class Parser:
             [addr] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=0, num_immediate=1)
             return instructions.Instructions.JUMP_ABSOLUTE_IMMEDIATE.value[1](addr)
 
-        if instruction == instructions.Instructions.JUMP_RELATIVE_IMMEDIATE.value[0]:
-            [offset] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=0, num_immediate=1)
-            return instructions.Instructions.JUMP_RELATIVE_IMMEDIATE.value[1](offset)
-
         if instruction == instructions.Instructions.BRANCH_ABSOLUTE_TRUE.value[0]:
             [cond, address] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=2)
-            return instructions.Instructions.BRANCH_ABSOLUTE_TRUE.value[1](address, cond)
-
-        if instruction == instructions.Instructions.BRANCH_RELATIVE_TRUE.value[0]:
-            [cond, offset] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=2)
-            return instructions.Instructions.BRANCH_RELATIVE_TRUE.value[1](offset, cond)
+            return instructions.Instructions.BRANCH_ABSOLUTE_TRUE.value[1](cond, address)
 
         if instruction == instructions.Instructions.BRANCH_ABSOLUTE_TRUE_IMMEDIATE.value[0]:
             [cond, address] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=1, num_immediate=1)
-            return instructions.Instructions.BRANCH_ABSOLUTE_TRUE.value[1](address, cond)
-
-        if instruction == instructions.Instructions.BRANCH_RELATIVE_TRUE_IMMEDIATE.value[0]:
-            [cond, offset] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=1, num_immediate=1)
-            return instructions.Instructions.JUMP_RELATIVE_IMMEDIATE.value[1](offset, cond)
+            return instructions.Instructions.BRANCH_ABSOLUTE_TRUE_IMMEDIATE.value[1](cond, address)
 
         if instruction == instructions.Instructions.LOAD_WORD.value[0]:
             [dest, base, offset] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=3)
@@ -216,8 +212,7 @@ class Parser:
             return instructions.Instructions.STORE_WORD_IMMEDIATE.value[1](addr, source)
 
         if instruction == instructions.Instructions.HALT.value[0]:
-            [status] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=1)
-            return instructions.Instructions.HALT.value[1](status)
+            return instructions.Instructions.HALT.value[1]()
 
         if instruction == instructions.Instructions.NO_OP.value[0]:
             return instructions.Instructions.NO_OP.value[1]()

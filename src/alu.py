@@ -161,9 +161,11 @@ class Multiply(BaseALUInstruction):
         self.__op2 = op2
 
     def execute(self, register_file: registers.RegisterFile):
+        val1 = register_file.get_register_value(self.__op1)
+        val2 = register_file.get_register_value(self.__op2)
         return writeback.WriteBackAction(
             self.__dest,
-            register_file.get_register_value(self.__op1) * register_file.get_register_value(self.__op2)
+            val1 * val2
         )
 
 
