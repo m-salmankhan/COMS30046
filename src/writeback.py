@@ -32,7 +32,7 @@ class WriteBack:
     def write(self):
         if len(self.__action_buffer) == 0:
             return
-        
+
         action = self.__action_buffer.popleft()
         print(f"write-back: Writing {registers.Registers(action.reg).name} <- {action.data}")
         self.__register_file.set_register_value(action.reg, action.data)
