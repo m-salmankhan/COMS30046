@@ -1,15 +1,14 @@
 import argparse
 import processor
-import parser
+from assembler import Assembler
 
 
 def main(input_file: str, speed: int):
     # First parse the input file and load the program and data into memory
-    parser.Parser(input_file)
+    assembler = Assembler(input_file)
 
     # Then run the processor
-    a = processor.Processor(speed)
-
+    a = processor.Processor(speed, assembler.assemble())
     a.run()
 
 

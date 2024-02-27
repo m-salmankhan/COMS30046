@@ -1,24 +1,33 @@
+import os
 from pathlib import Path
 from typing import List
 
 import base_instruction
-import memory as mem
 import instructions
 import registers
-import writeback
 
 
-class Parser:
-    __labels = {}
+class Assembler:
 
-    def __init__(self, input_file: str):
-        input_path = Path(input_file)
-        self.parse(input_path)
+    # if input path is specified, text is loaded from file. Otherwise, it can be passed as a string.
+    # if both are provided, it will ignore the string and use the file.
+    def __init__(self, input_file: None | str = None, input_str: None | str = None):
+        self.__labels = {}
 
-    def parse(self, input_file: Path):
-        memory = mem.Memory(registers.RegisterFile(), writeback.WriteBack())
-        with open(input_file, "r") as fh:
-            lines = fh.readlines()
+        self.__input_path = Path(input_file) if input_file is not None else None
+        self.__input_str = input_str
+
+        if input_str is None and input_file is None:
+            raise ValueError("Either an input string or an asm file must be provided.")
+
+    def assemble(self) -> List[base_instruction.BaseInstruction | int]:
+        assembled = []
+
+        if self.__input_path is not None:
+            with open(self.__input_path, "r") as fh:
+                lines = fh.readlines()
+        else:
+            lines = self.__input_str.split(os.linesep)
 
         # remove comments
         lines = [x.split(";")[0] for x in lines]
@@ -64,9 +73,9 @@ class Parser:
         for (idx, line) in enumerate(lines):
             instruction = self.__parse_inst(lines, idx)
 
-            # load instruction to memory
-            if instruction is not None:
-                memory.set(idx, instruction)
+            assembled.append(instruction)
+
+        return assembled
 
     def __parse_operands(self, instruction_name, segments: List[str], lines: List[str], line_num: int, num_regs: int,
                          num_immediate=0) -> List[registers.Registers | int]:

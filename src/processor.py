@@ -1,13 +1,15 @@
+from typing import List
+
 import alu
 import registers
 import clock
 import control
 import memory
 import writeback
-
+from src.base_instruction import BaseInstruction
 
 class Processor:
-    def __init__(self, clock_speed: int):
+    def __init__(self, clock_speed: int, preload: List[BaseInstruction | int]):
         self.register_file = registers.RegisterFile()
         self.write_back = writeback.WriteBack()
         self.clock = clock.Clock(clock_speed)
@@ -15,6 +17,13 @@ class Processor:
         self.memory_unit = memory.Memory(self.register_file, self.write_back)
         self.alu = alu.ALU(self.register_file, self.write_back)
         self.control_unit = control.Control(self.alu, self.memory_unit, self.register_file)
+
+        # load instructions and data to memory
+        self.preload_memory(preload)
+
+    def preload_memory(self, data: List[BaseInstruction | int]):
+        for (idx, item) in enumerate(data):
+            self.memory_unit.set(idx, item)
 
     def run(self):
         while True:

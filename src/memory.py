@@ -32,26 +32,16 @@ class Memory:
     # data types that can be stored in memory
     __type = None | base_instruction.BaseInstruction | int
 
-    # singleton instance
-    __instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if cls.__instance is None:
-            cls.__instance = super(Memory, cls).__new__(cls)
-
-        return cls.__instance
-
     def __init__(self, register_file: registers.RegisterFile, write_back: writeback.WriteBack):
-        if not hasattr(self, "_initialised"):
-            self._initialised = True
+        self._initialised = True
 
-            self.__memory: List[Memory.__type] = [None] * Memory.__size
+        self.__memory: List[Memory.__type] = [None] * Memory.__size
 
-            self.__register_file = register_file
-            self.__write_back = write_back
+        self.__register_file = register_file
+        self.__write_back = write_back
 
-            self.__action_buffer: Deque[MemoryAction] = deque()
-            self.__instruction: None | BaseMemoryInstruction = None
+        self.__action_buffer: Deque[MemoryAction] = deque()
+        self.__instruction: None | BaseMemoryInstruction = None
 
     # Get address in memory
     def get(self, address: int) -> __type:
