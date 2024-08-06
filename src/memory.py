@@ -5,7 +5,7 @@ from typing import List, Callable, Deque
 import base_instruction
 import registers
 import writeback
-
+import clock
 
 class MemoryAction:
     def __init__(self, address: int, data: int | None = None, register: None | registers.Registers = None):
@@ -24,6 +24,10 @@ class BaseMemoryInstruction(base_instruction.BaseInstruction, ABC):
     def execute(self, register_file: registers.RegisterFile, memory: "Memory") -> None | MemoryAction:
         pass
 
+    @abstractmethod
+    def get_execution_cycles(self) -> int:
+        return 1
+
 
 class Memory:
     # available size in bytes
@@ -32,13 +36,15 @@ class Memory:
     # data types that can be stored in memory
     __type = None | base_instruction.BaseInstruction | int
 
-    def __init__(self, register_file: registers.RegisterFile, write_back: writeback.WriteBack):
+    def __init__(self, register_file: registers.RegisterFile, write_back: writeback.WriteBack, clock: clock.Clock):
         self._initialised = True
 
         self.__memory: List[Memory.__type] = [None] * Memory.__size
 
         self.__register_file = register_file
         self.__write_back = write_back
+        self.__clock = clock
+        self.__finish_at = None
 
         self.__action_buffer: Deque[MemoryAction] = deque()
         self.__instruction: None | BaseMemoryInstruction = None
@@ -54,40 +60,59 @@ class Memory:
     def give_instruction(self, instruction: BaseMemoryInstruction):
         self.__instruction = instruction
 
+    def is_available(self) -> bool:
+        return self.__instruction is None
+
     def add_memory_action(self, action: MemoryAction):
         self.__action_buffer.append(action)
 
-    def execute(self):
+    # returns whether instruction was executed
+    def execute(self) -> bool:
         if self.__instruction is None:
-            return
+            return False
 
         print(f"execute: {self.__instruction}")
 
-        memory_action = self.__instruction.execute(self.__register_file, self)
-        self.__instruction = None
-        self.add_memory_action(memory_action)
+        # wait if the memory unit is busy executing in the mem stage
+        if not self.is_mem_busy():
+            memory_action = self.__instruction.execute(self.__register_file, self)
+            self.__instruction = None
+            self.add_memory_action(memory_action)
+            return True
+        else:
+            return False
+
+    def is_mem_busy(self) -> bool:
+        return len(self.__action_buffer) > 0
 
     def exec_memory_actions(self):
         if len(self.__action_buffer) == 0:
             return
 
-        action = self.__action_buffer.popleft()
+        # hasn't started "executing" yet.
+        if self.__finish_at is None:
+            self.__finish_at = self.__clock.get_time() + 100
 
-        address = action.address
-        data = action.data
-        reg = action.register
+        # only execute when the timer runs out, to simulate it taking however many cycles to execute
+        if self.__clock.get_time() + 1 >= self.__finish_at:
+            action = self.__action_buffer.popleft()
 
-        # if loading data from memory to register
-        if reg is not None:
-            print(f"memory: Queue {registers.Registers(reg).name} <- {self.get(address)}")
+            address = action.address
+            data = action.data
+            reg = action.register
 
-            write_back_action = writeback.WriteBackAction(reg=reg, data=self.get(address))
-            self.__write_back.prepare_write(write_back_action)
+            # if loading data from memory to register
+            if reg is not None:
+                print(f"memory: Queue {registers.Registers(reg).name} <- {self.get(address)}")
 
-        # if storing data from register to memory
-        else:
-            print(f"memory: MEM[{address}] <- {data}")
-            self.set(address, data)
+                write_back_action = writeback.WriteBackAction(reg=reg, data=self.get(address))
+                self.__write_back.prepare_write(write_back_action)
+
+            # if storing data from register to memory
+            else:
+                print(f"memory: MEM[{address}] <- {data}")
+                self.set(address, data)
+            self.__finish_at = None
 
 
 # REG[dest] = MEM[REG[base] + REG[offset]]
@@ -101,6 +126,9 @@ class LoadWord(BaseMemoryInstruction):
         address = register_file.get_register_value(self.__base) + register_file.get_register_value(self.__offset)
         return MemoryAction(address=address, register=self.__dest)
 
+    def get_execution_cycles(self) -> int:
+        return 100
+
 
 # REG[dest] = MEM[REG[base] + offset]
 class LoadWordImmediate(BaseMemoryInstruction):
@@ -113,6 +141,9 @@ class LoadWordImmediate(BaseMemoryInstruction):
         address = register_file.get_register_value(self.__base) + self.__offset
         return MemoryAction(address=address, register=self.__dest)
 
+    def get_execution_cycles(self) -> int:
+        return 100
+
 
 # REG[dest] = MEM[REG[address]]
 class LoadWordConstant(BaseMemoryInstruction):
@@ -123,6 +154,8 @@ class LoadWordConstant(BaseMemoryInstruction):
     def execute(self, register_file: registers.RegisterFile, memory: Memory):
         return MemoryAction(address=register_file.get_register_value(self.__address), register=self.__dest)
 
+    def get_execution_cycles(self) -> int:
+        return 100
 
 # REG[dest] = MEM[address]
 class LoadWordConstantImmediate(BaseMemoryInstruction):
@@ -133,6 +166,9 @@ class LoadWordConstantImmediate(BaseMemoryInstruction):
     def execute(self, register_file: registers.RegisterFile, memory: Memory):
         address = self.__address
         return MemoryAction(address=address, register=self.__dest)
+
+    def get_execution_cycles(self) -> int:
+        return 100
 
 
 # MEM[REG[address]] = REG[source]
@@ -145,6 +181,9 @@ class StoreWord(BaseMemoryInstruction):
         return MemoryAction(address=register_file.get_register_value(self.__address),
                             data=register_file.get_register_value(self.__source))
 
+    def get_execution_cycles(self) -> int:
+        return 100
+
 
 # MEM[address] = REG[source]
 class StoreWordImmediate(BaseMemoryInstruction):
@@ -155,3 +194,6 @@ class StoreWordImmediate(BaseMemoryInstruction):
     def execute(self, register_file: registers.RegisterFile, memory: Memory):
         return MemoryAction(address=register_file.get_register_value(self.__address),
                             data=self.__data)
+
+    def get_execution_cycles(self) -> int:
+        return 100

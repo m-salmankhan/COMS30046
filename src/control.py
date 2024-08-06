@@ -5,7 +5,7 @@ import alu
 import memory
 import registers
 import base_instruction
-
+import clock
 
 class BaseControlInstruction(base_instruction.BaseInstruction):
     @abstractmethod
@@ -62,10 +62,11 @@ class NoOp(BaseControlInstruction):
 
 
 class Control:
-    def __init__(self, alu: alu.ALU, mem: memory.Memory, register_file: registers.RegisterFile):
+    def __init__(self, alu: alu.ALU, mem: memory.Memory, register_file: registers.RegisterFile, clock: clock.Clock):
         self.__register_file = register_file
         self.__ALU = alu
         self.__memory = mem
+        self.__clock = clock
 
         self.__program_counter: int = 0
         self.__instruction_register: base_instruction.BaseInstruction | None = None
@@ -84,8 +85,10 @@ class Control:
         current_addr = self.__program_counter
         instruction = self.__memory.get(current_addr)
 
-        self.update_ir(instruction)
-        self.update_pc(current_addr+1)
+        # only fetch and increment PC if the last instruction has already been decoded
+        if self.is_ir_available():
+            self.update_ir(instruction)
+            self.update_pc(current_addr+1)
 
     def decode(self) -> None:
         instruction = self.__instruction_register
@@ -98,28 +101,48 @@ class Control:
         if not isinstance(instruction, base_instruction.BaseInstruction):
             raise Exception("Encountered data (not instruction) within PC address")
 
-        if isinstance(instruction, alu.BaseALUInstruction):
-            return self.__ALU.give_instruction(instruction)
-        elif isinstance(instruction, memory.BaseMemoryInstruction):
-            return self.__memory.give_instruction(instruction)
-        elif isinstance(instruction, BaseControlInstruction):
-            return self.give_instruction(instruction)
+        occupied_units = sum([1 if occupied else 0 for occupied in [self.is_available(), self.__memory.is_available(), self.__ALU.is_available()]])
+        if occupied_units != 0:
+            if isinstance(instruction, alu.BaseALUInstruction):
+                if self.__ALU.is_available():
+                    self.__ALU.give_instruction(instruction)
+                    self.__instruction_register = None
+            elif isinstance(instruction, memory.BaseMemoryInstruction):
+                if self.__memory.is_available():
+                    self.__memory.give_instruction(instruction)
+                    self.__instruction_register = None
+            elif isinstance(instruction, BaseControlInstruction):
+                if self.is_available():
+                    self.give_instruction(instruction)
+                    self.__instruction_register = None
+            else:
+                raise Exception(f"No unit exists to execute instructions of type {type(instruction)}.")
         else:
-            raise Exception(f"No unit exists to execute instructions of type {type(instruction)}.")
-
+            print("Unit occupied, blocking")
     def update_pc(self, new_val: int):
         self.__program_counter = new_val
 
     def update_ir(self, inst: base_instruction.BaseInstruction | None):
         self.__instruction_register = inst
 
+    # has the last instruction been dispatched to the relavent unit already?
+    def is_ir_available(self) -> bool:
+        return self.__instruction_register is None
+
     def give_instruction(self, instruction: BaseControlInstruction):
         self.__instruction = instruction
 
-    def execute(self) -> Tuple[bool, bool]:
+    # is the Control unit available to execute a new instruction?
+    def is_available(self):
+        return self.__instruction is None
+
+    def execute(self) -> Tuple[bool, bool, bool]:
         if self.__instruction is None:
-            return False, False
+            return False, False, False
+
         print(f"execute: {self.__instruction}")
+
+        # all CU unit only take 1 cycle, don't bother waiting
         new_pc, new_halt = self.__instruction.execute(self.__register_file)
         self.__instruction = None
 
@@ -128,4 +151,4 @@ class Control:
         if new_halt is not None:
             self.halt_status = new_halt
 
-        return (new_pc is not None), (new_halt is not None)
+        return True, (new_pc is not None), (new_halt is not None)

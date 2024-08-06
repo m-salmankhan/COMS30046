@@ -14,9 +14,9 @@ class Processor:
         self.write_back = writeback.WriteBack()
         self.clock = clock.Clock(clock_speed)
 
-        self.memory_unit = memory.Memory(self.register_file, self.write_back)
-        self.alu = alu.ALU(self.register_file, self.write_back)
-        self.control_unit = control.Control(self.alu, self.memory_unit, self.register_file)
+        self.memory_unit = memory.Memory(self.register_file, self.write_back, self.clock)
+        self.alu = alu.ALU(self.register_file, self.write_back, self.clock)
+        self.control_unit = control.Control(self.alu, self.memory_unit, self.register_file, self.clock)
 
         # load instructions and data to memory
         self.preload_memory(preload)
@@ -26,7 +26,9 @@ class Processor:
             self.memory_unit.set(idx, item)
 
     def run(self):
-        while True:
+        halted = False
+        inst_count = 0
+        while not halted:
             # write-back stage
             self.write_back.write()
 
@@ -34,9 +36,11 @@ class Processor:
             self.memory_unit.exec_memory_actions()
 
             # execute stage
-            pc_changed, halted = self.control_unit.execute()
-            self.alu.execute()
-            self.memory_unit.execute()
+            executed_cu, pc_changed, halted = self.control_unit.execute()
+            executed_alu = self.alu.execute()
+            executed_mem = self.memory_unit.execute()
+
+            inst_count = inst_count + executed_cu + executed_alu + executed_mem
 
             # if there has been a branch or HALT instruction, throw away the fetched instruction
             # so that it isn't decoded on the next cycle
@@ -53,3 +57,6 @@ class Processor:
 
             # Print Register File
             self.register_file.print_register_file(self.clock.get_time())
+
+        print(f"Executed {inst_count} instructions in {self.clock.get_time()} cycles")
+        print(f"Cycles per second: {inst_count / self.clock.get_time()}")

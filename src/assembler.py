@@ -236,3 +236,6 @@ class Assembler:
             return registers.Registers[name]
         except KeyError:
             raise Exception(f"Unrecognised Register {name} in \n\t{lines[line_num]}")
+
+    def get_label(self, key):
+        return self.__labels[key]

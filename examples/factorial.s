@@ -2,6 +2,7 @@
 ; calculate factorial(input)
 ; --------------------------------------
 
+_start:
 ; Load input into r0
 LDWIC r0 input
 ; Set r1 to 1 (initial value of accumulator)
@@ -36,6 +37,7 @@ NOP
 NOP
 
 BRATI r3 loop ; if REG[r3] then goto loop
+_end:
 HALT
 
 NOP
