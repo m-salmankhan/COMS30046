@@ -29,6 +29,9 @@ class WriteBack:
     def prepare_write(self, action: WriteBackAction):
         self.__action_buffer.append(action)
 
+    def is_available(self) -> bool:
+        return len(self.__action_buffer) == 0
+
     def write(self):
         if len(self.__action_buffer) == 0:
             return

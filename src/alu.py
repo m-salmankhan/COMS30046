@@ -335,9 +335,11 @@ class ALU:
         # only execute when the timer runs out, to simulate it taking however many cycles to execute
         if self.__clock.get_time() + 1 >= self.__finish_at:
             write_back_action = self.__instruction.execute(self.__register_file)
-            self.__finish_at = None
-            self.__instruction = None
-            self.__write_back.prepare_write(write_back_action)
-            return True
+            # still stall if writeback unit is busy
+            if write_back_action is None or self.__write_back.is_available():
+                self.__write_back.prepare_write(write_back_action)
+                self.__finish_at = None
+                self.__instruction = None
+                return True
         else:
             return False

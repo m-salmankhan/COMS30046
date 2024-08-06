@@ -48,6 +48,7 @@ class Memory:
 
         self.__action_buffer: Deque[MemoryAction] = deque()
         self.__instruction: None | BaseMemoryInstruction = None
+        self.__wb_res: None | writeback.WriteBackAction = None
 
     # Get address in memory
     def get(self, address: int) -> __type:
@@ -86,6 +87,12 @@ class Memory:
         return len(self.__action_buffer) > 0
 
     def exec_memory_actions(self):
+        if self.__wb_res is not None:
+            if self.__write_back.is_available():
+                self.__write_back.prepare_write(self.__wb_res)
+                self.__wb_res = None
+            return
+        
         if len(self.__action_buffer) == 0:
             return
 
@@ -106,8 +113,12 @@ class Memory:
                 print(f"memory: Queue {registers.Registers(reg).name} <- {self.get(address)}")
 
                 write_back_action = writeback.WriteBackAction(reg=reg, data=self.get(address))
-                self.__write_back.prepare_write(write_back_action)
-
+                # can only do this if wb unit has capacity
+                if self.__write_back.is_available():
+                    self.__write_back.prepare_write(write_back_action)
+                else:
+                    # store the result and write it next cycle
+                    self.__wb_res = write_back_action
             # if storing data from register to memory
             else:
                 print(f"memory: MEM[{address}] <- {data}")
