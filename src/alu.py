@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
 from math import floor
+from typing import List
 
 import registers
 import writeback
 import base_instruction
 import clock
+import memory
+
 
 class BaseALUInstruction(base_instruction.BaseInstruction, ABC):
     @abstractmethod
@@ -31,6 +34,19 @@ class BitWiseAnd(BaseALUInstruction):
     def get_execution_cycles(self) -> int:
         return 1
 
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class BitWiseOr(BaseALUInstruction):
     def __init__(self, dest: registers.Registers, op1: registers.Registers, op2: registers.Registers):
@@ -46,6 +62,19 @@ class BitWiseOr(BaseALUInstruction):
 
     def get_execution_cycles(self) -> int:
         return 1
+
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
 
 
 class BitWiseXOr(BaseALUInstruction):
@@ -63,6 +92,19 @@ class BitWiseXOr(BaseALUInstruction):
     def get_execution_cycles(self) -> int:
         return 1
 
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class BitWiseNot(BaseALUInstruction):
     def __init__(self, dest: registers.Registers, op1: registers.Registers):
@@ -77,6 +119,18 @@ class BitWiseNot(BaseALUInstruction):
 
     def get_execution_cycles(self) -> int:
         return 1
+
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
 
 
 class Add(BaseALUInstruction):
@@ -94,6 +148,19 @@ class Add(BaseALUInstruction):
     def get_execution_cycles(self) -> int:
         return 1
 
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class AddImmediate(BaseALUInstruction):
     def __init__(self, dest: registers.Registers, op1: registers.Registers, op2: int):
@@ -109,6 +176,18 @@ class AddImmediate(BaseALUInstruction):
 
     def get_execution_cycles(self) -> int:
         return 1
+
+    def get_dest(self) -> registers.Registers | None:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
 
 
 class Subtract(BaseALUInstruction):
@@ -126,6 +205,19 @@ class Subtract(BaseALUInstruction):
     def get_execution_cycles(self) -> int:
         return 1
 
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class SubtractImmediate(BaseALUInstruction):
     def __init__(self, dest: registers.Registers, op1: registers.Registers, op2: int):
@@ -141,6 +233,18 @@ class SubtractImmediate(BaseALUInstruction):
 
     def get_execution_cycles(self) -> int:
         return 1
+
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
 
 
 class LesserThan(BaseALUInstruction):
@@ -158,6 +262,19 @@ class LesserThan(BaseALUInstruction):
     def get_execution_cycles(self) -> int:
         return 1
 
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class GreaterThan(BaseALUInstruction):
     def __init__(self, dest: registers.Registers, op1: registers.Registers, op2: registers.Registers):
@@ -174,6 +291,19 @@ class GreaterThan(BaseALUInstruction):
     def get_execution_cycles(self) -> int:
         return 1
 
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class EqualTo(BaseALUInstruction):
     def __init__(self, dest: registers.Registers, op1: registers.Registers, op2: registers.Registers):
@@ -189,6 +319,19 @@ class EqualTo(BaseALUInstruction):
 
     def get_execution_cycles(self) -> int:
         return 1
+
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
 
 
 class Multiply(BaseALUInstruction):
@@ -208,6 +351,19 @@ class Multiply(BaseALUInstruction):
     def get_execution_cycles(self) -> int:
         return 10
 
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class MultiplyImmediate(BaseALUInstruction):
     def __init__(self, dest: registers.Registers, op1: registers.Registers, op2: int):
@@ -223,6 +379,18 @@ class MultiplyImmediate(BaseALUInstruction):
 
     def get_execution_cycles(self) -> int:
         return 10
+
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
 
 
 class LeftShift(BaseALUInstruction):
@@ -240,6 +408,19 @@ class LeftShift(BaseALUInstruction):
     def get_execution_cycles(self) -> int:
         return 1
 
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class LeftShiftImmediate(BaseALUInstruction):
     def __init__(self, dest: registers.Registers, op1: registers.Registers, op2: int):
@@ -255,6 +436,18 @@ class LeftShiftImmediate(BaseALUInstruction):
 
     def get_execution_cycles(self) -> int:
         return 1
+
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
 
 
 class RightShift(BaseALUInstruction):
@@ -272,6 +465,19 @@ class RightShift(BaseALUInstruction):
     def get_execution_cycles(self) -> int:
         return 1
 
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class RightShiftImmediate(BaseALUInstruction):
     def __init__(self, dest: registers.Registers, op1: registers.Registers, op2: int):
@@ -287,6 +493,18 @@ class RightShiftImmediate(BaseALUInstruction):
 
     def get_execution_cycles(self) -> int:
         return 1
+
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
 
 
 class Divide(BaseALUInstruction):
@@ -304,13 +522,28 @@ class Divide(BaseALUInstruction):
     def get_execution_cycles(self) -> int:
         return 10
 
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1, self.__op2]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+        self.__op2 = registers.PhysicalRegisters(rat[self.__op2])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class ALU:
-    def __init__(self, register_file: registers.RegisterFile, write_back: writeback.WriteBack, clock: clock.Clock):
+    def __init__(self, register_file: registers.RegisterFile, write_back: writeback.WriteBack, clock: clock.Clock,
+                 memory: memory.Memory):
         self.__register_file = register_file
         self.__clock = clock
         self.__write_back = write_back
         self.__instruction: None | BaseALUInstruction = None
+        self.__memory = memory
 
         # used to keep track of which clock cycle the instruction that's executing should finish at.
         self.__finish_at: None | int = 0
@@ -326,20 +559,28 @@ class ALU:
     def execute(self) -> bool:
         if self.__instruction is None:
             return False
-        print(f"execute: {self.__instruction}")
+
+
+        print(f"ALU execute: {self.__instruction}")
 
         # hasn't started "executing" yet.
         if self.__finish_at is None:
             self.__finish_at = self.__clock.get_time() + self.__instruction.get_execution_cycles()
 
         # only execute when the timer runs out, to simulate it taking however many cycles to execute
+        # we also need to make sure that the memory unit is free (even though there's no dependence between them)
+        # to ensure in-order execution
         if self.__clock.get_time() + 1 >= self.__finish_at:
             write_back_action = self.__instruction.execute(self.__register_file)
-            # still stall if writeback unit is busy
-            if write_back_action is None or self.__write_back.is_available():
-                self.__write_back.prepare_write(write_back_action)
-                self.__finish_at = None
-                self.__instruction = None
-                return True
-        else:
-            return False
+            # stall if memory unit busy
+            if not self.__memory.is_mem_busy():
+                # stall if writeback unit is busy
+                if write_back_action is None or self.__write_back.is_available():
+                    self.__write_back.prepare_write(write_back_action)
+                    self.__finish_at = None
+                    self.__instruction = None
+                    return True
+            else:
+                print(f"\t Stalling waiting for memory")
+
+        return False

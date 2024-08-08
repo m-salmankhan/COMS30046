@@ -7,6 +7,7 @@ import registers
 import writeback
 import clock
 
+
 class MemoryAction:
     def __init__(self, address: int, data: int | None = None, register: None | registers.Registers = None):
         # memory address to load (or store) from (or to)
@@ -72,7 +73,7 @@ class Memory:
         if self.__instruction is None:
             return False
 
-        print(f"execute: {self.__instruction}")
+        print(f"MEM execute: {self.__instruction}")
 
         # wait if the memory unit is busy executing in the mem stage
         if not self.is_mem_busy():
@@ -87,43 +88,51 @@ class Memory:
         return len(self.__action_buffer) > 0
 
     def exec_memory_actions(self):
-        if self.__wb_res is not None:
-            if self.__write_back.is_available():
-                self.__write_back.prepare_write(self.__wb_res)
-                self.__wb_res = None
-            return
-        
+        # if self.__wb_res is not None:
+        #     if self.__write_back.is_available():
+        #         self.__write_back.prepare_write(self.__wb_res)
+        #         self.__wb_res = None
+        #     return
+
         if len(self.__action_buffer) == 0:
             return
 
         # hasn't started "executing" yet.
         if self.__finish_at is None:
-            self.__finish_at = self.__clock.get_time() + 100
+            self.__finish_at = self.__clock.get_time() + 0
+
+        action = self.__action_buffer.popleft()
+        print(f"Memory: data={action.data}, address={action.address}, reg={action.register}")
+        self.__action_buffer.appendleft(action)
 
         # only execute when the timer runs out, to simulate it taking however many cycles to execute
-        if self.__clock.get_time() + 1 >= self.__finish_at:
+        # also wait for WB unit to be available
+        if self.__clock.get_time() + 1 >= self.__finish_at and self.__write_back.is_available():
             action = self.__action_buffer.popleft()
-
             address = action.address
             data = action.data
             reg = action.register
 
             # if loading data from memory to register
             if reg is not None:
-                print(f"memory: Queue {registers.Registers(reg).name} <- {self.get(address)}")
+                print(f"\tQueue {registers.PhysicalRegisters(reg).name} <- {self.get(address)}")
 
                 write_back_action = writeback.WriteBackAction(reg=reg, data=self.get(address))
-                # can only do this if wb unit has capacity
-                if self.__write_back.is_available():
-                    self.__write_back.prepare_write(write_back_action)
-                else:
-                    # store the result and write it next cycle
-                    self.__wb_res = write_back_action
+                self.__write_back.prepare_write(write_back_action)
             # if storing data from register to memory
             else:
-                print(f"memory: MEM[{address}] <- {data}")
+                print(f"\tMEM[{address}] <- {data}")
                 self.set(address, data)
             self.__finish_at = None
+        else:
+            print("\tin progress...")
+
+    # is the value of this register going to be changed?
+    def wil_change_reg(self, register: registers.PhysicalRegisters) -> bool:
+        for action in self.__action_buffer:
+            if action.register == register:
+                return True
+        return False
 
 
 # REG[dest] = MEM[REG[base] + REG[offset]]
@@ -140,6 +149,19 @@ class LoadWord(BaseMemoryInstruction):
     def get_execution_cycles(self) -> int:
         return 100
 
+    def get_dest(self) -> registers.Registers | None:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__base, self.__offset]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__base = registers.PhysicalRegisters(rat[self.__base])
+        self.__offset = registers.PhysicalRegisters(rat[self.__offset])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = registers.PhysicalRegisters(new)
+
 
 # REG[dest] = MEM[REG[base] + offset]
 class LoadWordImmediate(BaseMemoryInstruction):
@@ -155,6 +177,20 @@ class LoadWordImmediate(BaseMemoryInstruction):
     def get_execution_cycles(self) -> int:
         return 100
 
+    def get_dest(self) -> registers.Registers | None:
+        return self.__dest
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = registers.PhysicalRegisters(new)
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__base, self.__offset]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__dest = registers.PhysicalRegisters(rat[self.__dest])
+        self.__base = registers.PhysicalRegisters(rat[self.__base])
+        self.__offset = registers.PhysicalRegisters(rat[self.__offset])
+
 
 # REG[dest] = MEM[REG[address]]
 class LoadWordConstant(BaseMemoryInstruction):
@@ -168,9 +204,23 @@ class LoadWordConstant(BaseMemoryInstruction):
     def get_execution_cycles(self) -> int:
         return 100
 
+    def get_dest(self) -> registers.Registers | None:
+        return self.__dest
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = registers.PhysicalRegisters(new)
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__address]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__dest = registers.PhysicalRegisters(rat[self.__dest])
+        self.__address = registers.PhysicalRegisters(rat[self.__address])
+
+
 # REG[dest] = MEM[address]
 class LoadWordConstantImmediate(BaseMemoryInstruction):
-    def __init__(self, dest: registers.Registers, address: registers.Registers):
+    def __init__(self, dest: registers.Registers, address: int):
         self.__dest = dest
         self.__address = address
 
@@ -180,6 +230,18 @@ class LoadWordConstantImmediate(BaseMemoryInstruction):
 
     def get_execution_cycles(self) -> int:
         return 100
+
+    def get_dest(self) -> registers.Registers | None:
+        return self.__dest
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = registers.PhysicalRegisters(new)
+
+    def get_sources(self) -> List[registers.Registers]:
+        return []
+
+    def update_source_registers(self, rat: List[int]):
+        self.__dest = registers.PhysicalRegisters(rat[self.__dest])
 
 
 # MEM[REG[address]] = REG[source]
@@ -195,6 +257,19 @@ class StoreWord(BaseMemoryInstruction):
     def get_execution_cycles(self) -> int:
         return 100
 
+    def get_dest(self) -> registers.Registers | None:
+        return None
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        pass
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__source, self.__address]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__source = registers.PhysicalRegisters(rat[self.__source])
+        self.__address = registers.PhysicalRegisters(rat[self.__address])
+
 
 # MEM[address] = REG[source]
 class StoreWordImmediate(BaseMemoryInstruction):
@@ -208,3 +283,16 @@ class StoreWordImmediate(BaseMemoryInstruction):
 
     def get_execution_cycles(self) -> int:
         return 100
+
+    def get_dest(self) -> registers.Registers | None:
+        return None
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        pass
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__data, self.__address]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__data = registers.PhysicalRegisters(rat[self.__data])
+        self.__address = registers.PhysicalRegisters(rat[self.__address])

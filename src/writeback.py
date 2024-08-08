@@ -1,11 +1,11 @@
 from collections import deque
-from typing import Deque
+from typing import Deque, Optional
 
 import registers
 
 
 class WriteBackAction:
-    def __init__(self, reg: registers.Registers, data: int):
+    def __init__(self, reg: registers.PhysicalRegisters, data: int):
         self.reg = reg
         self.data = data
 
@@ -32,10 +32,18 @@ class WriteBack:
     def is_available(self) -> bool:
         return len(self.__action_buffer) == 0
 
+    # if there is an action pending to write this result to a register, return the value
+    def forward_result(self, register: registers.PhysicalRegisters) -> Optional[int]:
+        for action in self.__action_buffer:
+            if action.reg == register:
+                return action.data
+        return None
+
+
     def write(self):
         if len(self.__action_buffer) == 0:
             return
 
         action = self.__action_buffer.popleft()
-        print(f"write-back: Writing {registers.Registers(action.reg).name} <- {action.data}")
+        print(f"write-back: Writing {registers.PhysicalRegisters(action.reg).name} <- {action.data}")
         self.__register_file.set_register_value(action.reg, action.data)

@@ -8,6 +8,7 @@ import memory
 import writeback
 from src.base_instruction import BaseInstruction
 
+
 class Processor:
     def __init__(self, clock_speed: int, preload: List[BaseInstruction | int]):
         self.register_file = registers.RegisterFile()
@@ -15,8 +16,8 @@ class Processor:
         self.clock = clock.Clock(clock_speed)
 
         self.memory_unit = memory.Memory(self.register_file, self.write_back, self.clock)
-        self.alu = alu.ALU(self.register_file, self.write_back, self.clock)
-        self.control_unit = control.Control(self.alu, self.memory_unit, self.register_file, self.clock)
+        self.alu = alu.ALU(self.register_file, self.write_back, self.clock, self.memory_unit)
+        self.control_unit = control.Control(self.alu, self.memory_unit, self.register_file, self.clock, self.write_back)
 
         # load instructions and data to memory
         self.preload_memory(preload)
@@ -28,35 +29,49 @@ class Processor:
     def run(self):
         halted = False
         inst_count = 0
-        while not halted:
+        should_continue_after_halt = False
+        while (not halted) or should_continue_after_halt:
             # write-back stage
             self.write_back.write()
 
             # memory stage
             self.memory_unit.exec_memory_actions()
 
-            # execute stage
-            executed_cu, pc_changed, halted = self.control_unit.execute()
-            executed_alu = self.alu.execute()
-            executed_mem = self.memory_unit.execute()
+            # only memory and wb can happen after a halt has been executed
+            if not halted:
+                # execute stage
+                executed_cu, pc_changed, halted = self.control_unit.execute()
+                executed_alu = self.alu.execute()
+                executed_mem = self.memory_unit.execute()
 
-            inst_count = inst_count + executed_cu + executed_alu + executed_mem
+                inst_count = inst_count + executed_cu + executed_alu + executed_mem
 
-            # if there has been a branch or HALT instruction, throw away the fetched instruction
-            # so that it isn't decoded on the next cycle
-            if pc_changed or halted:
-                self.control_unit.update_ir(None)
-                continue
-            # the decoded result would be the instruction in the IR which now needs to be abandoned
-            else:
-                self.control_unit.decode()
-                self.control_unit.instruction_fetch()
+                # if there has been a branch or HALT instruction, throw away the fetched instruction
+                # so that it isn't decoded on the next cycle
+                if pc_changed or halted:
+                    self.control_unit.update_ir(None)
+                    continue
+                # the decoded result would be the instruction in the IR which now needs to be abandoned
+                else:
+                    self.control_unit.decode()
+                    self.control_unit.instruction_fetch()
 
             # tick
             self.clock.tick()
 
             # Print Register File
+            print("----------------------")
             self.register_file.print_register_file(self.clock.get_time())
+            print("----------------------")
+            print("")
+
+            # after a halt, we should let things further on from the execute stage (i.e. memory and writeback) finish
+            # what they started
+            should_continue_after_halt = (
+                    (not self.memory_unit.is_available())
+                    or self.memory_unit.is_mem_busy()
+                    or (not self.write_back.is_available())
+            )
 
         print(f"Executed {inst_count} instructions in {self.clock.get_time()} cycles")
         print(f"Cycles per second: {inst_count / self.clock.get_time()}")

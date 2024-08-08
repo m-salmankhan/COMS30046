@@ -78,7 +78,7 @@ class Assembler:
         return assembled
 
     def __parse_operands(self, instruction_name, segments: List[str], lines: List[str], line_num: int, num_regs: int,
-                         num_immediate=0) -> List[registers.Registers | int]:
+                         num_immediate=0) -> List[registers.ArchRegisters | int]:
 
         num_operands = num_regs + num_immediate
         line = lines[line_num]
@@ -231,9 +231,9 @@ class Assembler:
         except ValueError:
             raise Exception(f"Unrecognised Instruction \"{instruction}\" on line {line_num}:\n\t {lines[line_num]}")
 
-    def __parse_register(self, name: str, lines: List[str], line_num: int) -> registers.Registers:
+    def __parse_register(self, name: str, lines: List[str], line_num: int) -> registers.ArchRegisters:
         try:
-            return registers.Registers[name]
+            return registers.ArchRegisters[name]
         except KeyError:
             raise Exception(f"Unrecognised Register {name} in \n\t{lines[line_num]}")
 
