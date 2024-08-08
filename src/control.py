@@ -198,20 +198,20 @@ class Control:
                 instruction.update_dest(new_dest)
             self.__instruction_register = instruction
 
-        # waiting_for_results = False
-        # sources = self.__instruction.get_sources()
-        # for source in sources:
-        #     res = self.__write_back.forward_result(source)
-        #     if res is not None or self.__memory.wil_change_reg(source):
-        #         print(f"\t waiting for {registers.PhysicalRegisters(source).name} to be valid")
-        #         waiting_for_results = True
+        waiting_for_results = False
+        sources = self.__instruction_register.get_sources()
+        for source in sources:
+            res = self.__writeback.forward_result(source)
+            if res is not None or self.__memory.wil_change_reg(source):
+                print(f"\t waiting for {registers.PhysicalRegisters(source).name} to be valid")
+                waiting_for_results = True
 
 
         occupied_units = sum([0 if available else 1 for available in
                               [self.is_available(), self.__memory.is_available(), self.__ALU.is_available()]])
 
-        # if occupied_units == 0 and not waiting_for_results:
-        if occupied_units == 0:
+        if occupied_units == 0 and not waiting_for_results:
+        # if occupied_units == 0:
             sources = self.__instruction_register.get_sources()
             for source in sources:
                 res = self.__writeback.forward_result(source)

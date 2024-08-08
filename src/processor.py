@@ -30,6 +30,9 @@ class Processor:
         halted = False
         inst_count = 0
         should_continue_after_halt = False
+
+        num_mispredicts = 0
+
         while (not halted) or should_continue_after_halt:
             # write-back stage
             self.write_back.write()
@@ -50,6 +53,7 @@ class Processor:
                 # so that it isn't decoded on the next cycle
                 if pc_changed or halted:
                     self.control_unit.update_ir(None)
+                    num_mispredicts += 1
                     continue
                 # the decoded result would be the instruction in the IR which now needs to be abandoned
                 else:
@@ -74,4 +78,5 @@ class Processor:
             )
 
         print(f"Executed {inst_count} instructions in {self.clock.get_time()} cycles")
-        print(f"Cycles per second: {inst_count / self.clock.get_time()}")
+        print(f"Instructions per cycle: {inst_count / self.clock.get_time()}")
+        print(f"Branch mispredicts: {num_mispredicts}")
