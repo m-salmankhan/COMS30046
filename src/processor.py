@@ -6,6 +6,7 @@ import clock
 import control
 import memory
 import writeback
+from src import flags
 from src.base_instruction import BaseInstruction
 
 
@@ -37,8 +38,16 @@ class Processor:
             # write-back stage
             self.write_back.write()
 
+            # tick after every pipeline stage to simulate un-pipelined execution
+            if not flags.pipeline:
+                self.clock.tick()
+
             # memory stage
             self.memory_unit.exec_memory_actions()
+
+            if not flags.pipeline:
+                self.clock.tick()
+
 
             # only memory and wb can happen after a halt has been executed
             if not halted:
@@ -47,20 +56,26 @@ class Processor:
                 executed_alu = self.alu.execute()
                 executed_mem = self.memory_unit.execute()
 
+                if not flags.pipeline:
+                    self.clock.tick()
+
                 inst_count = inst_count + executed_cu + executed_alu + executed_mem
 
                 # if there has been a branch or HALT instruction, throw away the fetched instruction
                 # so that it isn't decoded on the next cycle
                 if pc_changed or halted:
                     self.control_unit.update_ir(None)
-                    num_mispredicts += 1
+                    num_mispredicts += 1 if pc_changed else 0
                     continue
                 # the decoded result would be the instruction in the IR which now needs to be abandoned
                 else:
                     self.control_unit.decode()
+                    if not flags.pipeline:
+                        self.clock.tick()
+
                     self.control_unit.instruction_fetch()
 
-            # tick
+            # tick -- this one happens in both pipelined and unpipelined
             self.clock.tick()
 
             # Print Register File

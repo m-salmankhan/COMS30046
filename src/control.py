@@ -7,6 +7,7 @@ import memory
 import registers
 import base_instruction
 import clock
+from src import flags
 
 
 class BaseControlInstruction(base_instruction.BaseInstruction):
@@ -191,17 +192,25 @@ class Control:
             instruction = copy.deepcopy(instruction)
             # look up the physical registers in the RAT and replace them
             instruction.update_source_registers(self.__register_file.get_rat())
+
             # lets rename the registers
-            if dest is not None:
+            if flags.rename_registers and dest is not None:
                 print(f"\tRemapping {registers.ArchRegisters(dest).name}, for {instruction}")
                 new_dest = self.__register_file.alias_register(dest)
                 instruction.update_dest(new_dest)
             self.__instruction_register = instruction
 
+        # if any of the source registers are being written to, we need to wait for them
         waiting_for_results = False
         sources = self.__instruction_register.get_sources()
+
+        # if we aren't renaming registers, we also need to wait for the destination
+        if not flags.rename_registers:
+            sources.append(dest)
+
         for source in sources:
             res = self.__writeback.forward_result(source)
+
             if res is not None or self.__memory.wil_change_reg(source):
                 print(f"\t waiting for {registers.PhysicalRegisters(source).name} to be valid")
                 waiting_for_results = True
