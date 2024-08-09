@@ -118,6 +118,10 @@ class Assembler:
             [dest, op1] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=2)
             return instructions.Instructions.BitWiseNot.value[1](dest, op1)
 
+        if instruction == instructions.Instructions.LogicalNot.value[0]:
+            [dest, op1] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=2)
+            return instructions.Instructions.LogicalNot.value[1](dest, op1)
+
         if instruction == instructions.Instructions.ADDITION.value[0]:
             [dest, op1, op2] = self.__parse_operands(instruction, segments, lines, line_num, num_regs=3)
             return instructions.Instructions.ADDITION.value[1](dest, op1, op2)

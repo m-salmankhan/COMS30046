@@ -22,4 +22,4 @@ HALT
 
 
 input:
-0xA
+0xFF

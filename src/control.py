@@ -157,10 +157,15 @@ class Control:
         self.__instruction: BaseControlInstruction | None = None
 
     # rewrites arch registers and physical and checks for data hazards. If found, it stalls.
-    def check_hazards(self):
+    # returns Tuple [is instruction a branch?, Did we change the PC early?]
+    def check_hazards(self) -> Tuple[bool, bool]:
         instruction = self.__instruction_register
         if instruction is None or not isinstance(instruction, base_instruction.BaseInstruction):
-            return
+            return False, False
+
+        is_new_branch = False
+        if isinstance(instruction, BranchAbsoluteTrue) or isinstance(instruction, BranchAbsoluteTrueImmediate) or isinstance(instruction, JumpAbsolute) or isinstance(instruction, JumpAbsoluteImmediate):
+            is_new_branch = True
 
         dest = instruction.get_dest()
         sources = instruction.get_sources()
@@ -175,7 +180,9 @@ class Control:
             # look up the physical registers in the RAT and replace them
             instruction.update_source_registers(self.__register_file.get_rat())
             self.__instruction_register = instruction
-
+        else:
+            # we've already renamed it so must already have counted it as a branch
+            is_new_branch = False
         # if any of the source registers are being written to, we need to wait for them
         """
         Conditions we wait:
@@ -213,13 +220,22 @@ class Control:
             elif self.__memory.wil_change_reg(source):
                 print(f"Hazard Check: waiting for {registers.PhysicalRegisters(source).name} to be written to. Memory result executing.")
                 self.__waiting_for_results = True
-            elif not flags.forward_results:
-                if forwarded_result is not None:
+            # it's in the EX/MEM or MEM/WB reg
+            elif forwarded_result is not None:
+                if not flags.forward_results:
                     print(f"Hazard Check: waiting for {registers.PhysicalRegisters(source).name} to be written to. Not Writtenback yet")
                     self.__waiting_for_results = True
-
             else:
                 continue
+
+        # if it's a JMP (unconditional branch) change PC here
+        if isinstance(instruction, JumpAbsolute) or isinstance(instruction, JumpAbsoluteImmediate):
+            new_pc, _ = instruction.execute(self.__register_file)
+            self.update_pc(new_pc)
+            return is_new_branch, new_pc != self.__program_counter
+
+        return is_new_branch, False
+
 
     def instruction_fetch(self) -> None:
         if self.halt_status == 1:
@@ -236,7 +252,7 @@ class Control:
             self.update_ir(instruction)
             self.update_pc(current_addr + 1)
 
-    def decode(self) -> None:
+    def decode(self):
         instruction = self.__instruction_register
 
         if instruction is None:
@@ -258,9 +274,11 @@ class Control:
             instruction.update_dest(new_dest)
         self.__instruction_register = instruction
 
-
         occupied_units = sum([0 if available else 1 for available in
                               [self.is_available(), self.__memory.is_available(), self.__ALU.is_available()]])
+
+        if self.__waiting_for_results:
+            print("\t Waiting for results, can't decode.")
 
         if occupied_units == 0 and not self.__waiting_for_results:
 
@@ -295,20 +313,30 @@ class Control:
     def is_available(self):
         return self.__instruction is None
 
+    # return Tuple [did CU execute ins?, was PC changed?, was HALT encountered?]
     def execute(self) -> Tuple[bool, bool, bool]:
         if self.__instruction is None:
             return False, False, False
 
         print(f"CU execute: {self.__instruction}")
+
+        if isinstance(self.__instruction, JumpAbsoluteImmediate) or isinstance(self.__instruction, JumpAbsolute):
+            print(f"\t JMP already evaluated at Decode Stage, doing nothing")
+            self.__instruction = None
+            return True, False, False
+
         # wait for memory to be available
         if not self.__memory.is_mem_busy():
             new_pc, new_halt = self.__instruction.execute(self.__register_file)
-            self.__instruction = None
 
-            if new_pc is not None:
+            if new_pc is not None and new_pc != self.__program_counter:
+                print(f"\t PC value changed.")
                 self.update_pc(new_pc)
             if new_halt is not None:
                 self.halt_status = new_halt
 
+            self.__instruction = None
+
             return True, (new_pc is not None), (new_halt is not None)
+
         return False, False, False

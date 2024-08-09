@@ -33,10 +33,13 @@ class Processor:
         should_continue_after_halt = False
 
         num_mispredicts = 0
+        num_branches = 0
 
         while (not halted) or should_continue_after_halt:
             # check hazards
-            self.control_unit.check_hazards()
+            is_branch, was_jmp = self.control_unit.check_hazards()
+            if is_branch:
+                num_branches += 1
 
             # write-back stage
             self.write_back.write()
@@ -70,6 +73,8 @@ class Processor:
                     self.control_unit.update_ir(None)
                     self.control_unit.decode()
 
+                    # if the PC was changed in the EX stage, it means that a Branch instruction changed the PC
+                    # since we predict that conditions are always false (i.e. no branch will happen), we mispredicted
                     num_mispredicts += 1 if pc_changed else 0
                     continue
 
@@ -78,7 +83,10 @@ class Processor:
                     if not flags.pipeline:
                         self.clock.tick()
 
-                    self.control_unit.instruction_fetch()
+                    # if there was a JMP that changed the PC, we still need to wait a cycle
+                    # the fetch stage shouldn't see the PC update until next cycle
+                    if not was_jmp:
+                        self.control_unit.instruction_fetch()
 
             # tick -- this one happens in both pipelined and unpipelined
             self.clock.tick()
@@ -98,5 +106,6 @@ class Processor:
             )
 
         print(f"Executed {inst_count} instructions in {self.clock.get_time()} cycles")
-        print(f"Cycles per Instructions: {self.clock.get_time() / inst_count}")
-        print(f"Branch mispredicts: {num_mispredicts}")
+        print(f"Cycles per Instruction: {self.clock.get_time() / inst_count}")
+        if num_branches != 0:
+            print(f"Branch mispredicts: {num_mispredicts}/{num_branches} ({100 - 100*num_mispredicts/num_branches}% correct)")

@@ -110,7 +110,8 @@ class Memory:
 
         # hasn't started "executing" yet.
         if self.__finish_at is None:
-            self.__finish_at = self.__clock.get_time() + 100
+            mem_exec_time = 100
+            self.__finish_at = self.__clock.get_time() + mem_exec_time
 
         action = self.__action_buffer.popleft()
         print(f"Memory: data={action.data}, address={action.address}, reg={action.register}")

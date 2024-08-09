@@ -132,6 +132,32 @@ class BitWiseNot(BaseALUInstruction):
     def update_dest(self, new: registers.PhysicalRegisters):
         self.__dest = new
 
+class LogicalNot(BaseALUInstruction):
+    def __init__(self, dest: registers.Registers, op1: registers.Registers):
+        self.__dest = dest
+        self.__op1 = op1
+
+    def execute(self, register_file: registers.RegisterFile):
+        return writeback.WriteBackAction(
+            self.__dest,
+            not register_file.get_register_value(self.__op1)
+        )
+
+    def get_execution_cycles(self) -> int:
+        return 1
+
+    def get_dest(self) -> registers.Registers:
+        return self.__dest
+
+    def get_sources(self) -> List[registers.Registers]:
+        return [self.__op1]
+
+    def update_source_registers(self, rat: List[int]):
+        self.__op1 = registers.PhysicalRegisters(rat[self.__op1])
+
+    def update_dest(self, new: registers.PhysicalRegisters):
+        self.__dest = new
+
 
 class Add(BaseALUInstruction):
     def __init__(self, dest: registers.Registers, op1: registers.Registers, op2: registers.Registers):

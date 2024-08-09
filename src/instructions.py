@@ -10,6 +10,7 @@ class Instructions(Enum):
     BitWiseOr = ("OR", alu.BitWiseOr)
     BitWiseXOr = ("XOR", alu.BitWiseXOr)
     BitWiseNot = ("NOT", alu.BitWiseNot)
+    LogicalNot = ("LNOT", alu.LogicalNot)
     ADDITION = ("ADD", alu.Add)
     ADDITION_IMMEDIATE = ("ADDI", alu.AddImmediate)
     SUBTRACT = ("SUB", alu.Subtract)
