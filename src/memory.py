@@ -48,6 +48,7 @@ class Memory:
         self.__finish_at = None
 
         self.__action_buffer: Deque[MemoryAction] = deque()
+        self.__forward_wb: writeback.WriteBackAction | None = None
         self.__instruction: None | BaseMemoryInstruction = None
         self.__wb_res: None | writeback.WriteBackAction = None
 
@@ -62,11 +63,19 @@ class Memory:
     def give_instruction(self, instruction: BaseMemoryInstruction):
         self.__instruction = instruction
 
+    def get_instruction(self) -> BaseMemoryInstruction | None:
+        return self.__instruction
+
+
     def is_available(self) -> bool:
         return self.__instruction is None
 
     def add_memory_action(self, action: MemoryAction):
         self.__action_buffer.append(action)
+
+    # set the __forward_wb register
+    def pass_to_wb(self, action: writeback.WriteBackAction):
+        self.__forward_wb = action
 
     # returns whether instruction was executed
     def execute(self) -> bool:
@@ -85,14 +94,16 @@ class Memory:
             return False
 
     def is_mem_busy(self) -> bool:
-        return len(self.__action_buffer) > 0
+        return len(self.__action_buffer) > 0 or self.__forward_wb is not None
 
     def exec_memory_actions(self):
-        # if self.__wb_res is not None:
-        #     if self.__write_back.is_available():
-        #         self.__write_back.prepare_write(self.__wb_res)
-        #         self.__wb_res = None
-        #     return
+        # if the execute stage put something that just needs to be forwarded to wb, forward it
+        # there's no memory actions that need to be done
+        if self.__forward_wb is not None:
+            print(f"Memory: Queue (Forwarded from EX) {registers.PhysicalRegisters(self.__forward_wb.reg).name} <- {self.__forward_wb.data}")
+            self.__write_back.prepare_write(self.__forward_wb)
+            self.__forward_wb = None
+            return
 
         if len(self.__action_buffer) == 0:
             return
@@ -127,12 +138,20 @@ class Memory:
         else:
             print("\tin progress...")
 
-    # is the value of this register going to be changed?
+    # is the value of this register going to be changed because of a MEM action?
     def wil_change_reg(self, register: registers.PhysicalRegisters) -> bool:
         for action in self.__action_buffer:
             if action.register == register:
                 return True
         return False
+
+    # if just passing on a register write from EX, we can steal this for result forwarding.
+    def forward_result(self, register: registers.PhysicalRegisters):
+        if self.__forward_wb is None:
+            return
+        if self.__forward_wb.reg != register:
+            return None
+        return self.__forward_wb.data
 
 
 # REG[dest] = MEM[REG[base] + REG[offset]]

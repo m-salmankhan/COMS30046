@@ -151,8 +151,75 @@ class Control:
         self.__instruction_register: base_instruction.BaseInstruction | None = None
         self.halt_status: int = 0
 
+        self.__waiting_for_results = False
+
         # instruction to be executed in "execute" stage
         self.__instruction: BaseControlInstruction | None = None
+
+    # rewrites arch registers and physical and checks for data hazards. If found, it stalls.
+    def check_hazards(self):
+        instruction = self.__instruction_register
+        if instruction is None or not isinstance(instruction, base_instruction.BaseInstruction):
+            return
+
+        dest = instruction.get_dest()
+        sources = instruction.get_sources()
+
+        source_is_renamed = (len(sources) > 0 and isinstance(sources[0], registers.PhysicalRegisters))
+        dest_is_renamed = dest is not None and isinstance(dest, registers.PhysicalRegisters)
+
+        # Renaming time!
+        # Just make sure we don't accidentally rename twice because it waited the first time.
+        if not (source_is_renamed or dest_is_renamed):
+            instruction = copy.deepcopy(instruction)
+            # look up the physical registers in the RAT and replace them
+            instruction.update_source_registers(self.__register_file.get_rat())
+            self.__instruction_register = instruction
+
+        # if any of the source registers are being written to, we need to wait for them
+        """
+        Conditions we wait:
+            - a functional unit is executing an instruction that writes to a register that's used here
+            - the memory unit is about to push an action into the MEM/WB pipeline register that writes to this register
+            
+            - Result forwarding is off AND:
+                - the wb unit already has an action in its pipeline register that writes to this
+                - the memory unit is about to forward a result from EX to WB (in this case, the value is known)
+        """
+        self.__waiting_for_results = False
+        sources = self.__instruction_register.get_sources()
+
+        # if we aren't renaming registers, we also need to wait for the destination
+        if not flags.rename_registers and dest is not None:
+            sources.append(dest)
+
+        for source in sources:
+            alu_writing = self.__ALU.get_instruction().get_dest() == source if self.__ALU.get_instruction() is not None else False
+            cu_writing = self.__instruction.get_dest() == source if self.__instruction is not None else False
+            mem_writing = self.__memory.get_instruction().get_dest() == source if self.__memory.get_instruction() is not None else False
+
+            function_units_writing = alu_writing or cu_writing or mem_writing
+
+            # forwarded results from mem and wb units
+            wb_res = self.__writeback.forward_result(source)
+            mem_res = self.__memory.forward_result(source)
+            forwarded_result = wb_res if wb_res is not None else mem_res
+
+            # If result is still being written to in EX stage
+            if function_units_writing:
+                print(f"Hazard Check: waiting for {registers.PhysicalRegisters(source).name} to be written to. Still executing")
+                self.__waiting_for_results = True
+            # if a memory action is about to cause a write to this register
+            elif self.__memory.wil_change_reg(source):
+                print(f"Hazard Check: waiting for {registers.PhysicalRegisters(source).name} to be written to. Memory result executing.")
+                self.__waiting_for_results = True
+            elif not flags.forward_results:
+                if forwarded_result is not None:
+                    print(f"Hazard Check: waiting for {registers.PhysicalRegisters(source).name} to be written to. Not Writtenback yet")
+                    self.__waiting_for_results = True
+
+            else:
+                continue
 
     def instruction_fetch(self) -> None:
         if self.halt_status == 1:
@@ -181,52 +248,21 @@ class Control:
             raise Exception("Encountered data (not instruction) within PC address")
 
         dest = instruction.get_dest()
-        sources = instruction.get_sources()
-
-        source_is_renamed = (len(sources) > 0 and isinstance(sources[0], registers.PhysicalRegisters))
         dest_is_renamed = dest is not None and isinstance(dest, registers.PhysicalRegisters)
 
-        # Renaming time!
-        # Just make sure we don't accidentally rename twice because it waited the first time.
-        if not (source_is_renamed or dest_is_renamed):
-            instruction = copy.deepcopy(instruction)
-            # look up the physical registers in the RAT and replace them
-            instruction.update_source_registers(self.__register_file.get_rat())
-
-            # lets rename the registers
-            if flags.rename_registers and dest is not None:
-                print(f"\tRemapping {registers.ArchRegisters(dest).name}, for {instruction}")
-                new_dest = self.__register_file.alias_register(dest)
-                instruction.update_dest(new_dest)
-            self.__instruction_register = instruction
-
-        # if any of the source registers are being written to, we need to wait for them
-        waiting_for_results = False
-        sources = self.__instruction_register.get_sources()
-
-        # if we aren't renaming registers, we also need to wait for the destination
-        if not flags.rename_registers:
-            sources.append(dest)
-
-        for source in sources:
-            res = self.__writeback.forward_result(source)
-
-            if res is not None or self.__memory.wil_change_reg(source):
-                print(f"\t waiting for {registers.PhysicalRegisters(source).name} to be valid")
-                waiting_for_results = True
+        # TODO: handle rename failed: e.g. if there weren't enough physical registers
+        # lets rename the registers
+        if flags.rename_registers and dest is not None and not dest_is_renamed:
+            print(f"\t Remapping {registers.ArchRegisters(dest).name}, for {instruction}")
+            new_dest = self.__register_file.alias_register(dest)
+            instruction.update_dest(new_dest)
+        self.__instruction_register = instruction
 
 
         occupied_units = sum([0 if available else 1 for available in
                               [self.is_available(), self.__memory.is_available(), self.__ALU.is_available()]])
 
-        if occupied_units == 0 and not waiting_for_results:
-        # if occupied_units == 0:
-            sources = self.__instruction_register.get_sources()
-            for source in sources:
-                res = self.__writeback.forward_result(source)
-                if res is not None or self.__memory.wil_change_reg(source):
-                    print(f"\t waiting for {registers.PhysicalRegisters(source).name} to be valid")
-                    wait = True
+        if occupied_units == 0 and not self.__waiting_for_results:
 
             if isinstance(instruction, alu.BaseALUInstruction):
                 self.__ALU.give_instruction(instruction)

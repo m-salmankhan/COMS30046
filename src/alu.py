@@ -551,6 +551,9 @@ class ALU:
     def give_instruction(self, instruction: BaseALUInstruction):
         self.__instruction = instruction
 
+    def get_instruction(self) -> BaseALUInstruction | None:
+        return self.__instruction
+
     # whether the ALU is available for being given a new instruction (i.e. has it finished executing the last one).
     def is_available(self) -> bool:
         return self.__instruction is None
@@ -574,12 +577,11 @@ class ALU:
             write_back_action = self.__instruction.execute(self.__register_file)
             # stall if memory unit busy
             if not self.__memory.is_mem_busy():
-                # stall if writeback unit is busy
-                if write_back_action is None or self.__write_back.is_available():
-                    self.__write_back.prepare_write(write_back_action)
-                    self.__finish_at = None
-                    self.__instruction = None
-                    return True
+                print(f"\t forward through MEM: {registers.PhysicalRegisters(write_back_action.reg).name} <- {write_back_action.data}")
+                self.__memory.pass_to_wb(write_back_action)
+                self.__finish_at = None
+                self.__instruction = None
+                return True
             else:
                 print(f"\t Stalling waiting for memory")
 

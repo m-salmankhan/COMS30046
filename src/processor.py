@@ -35,6 +35,9 @@ class Processor:
         num_mispredicts = 0
 
         while (not halted) or should_continue_after_halt:
+            # check hazards
+            self.control_unit.check_hazards()
+
             # write-back stage
             self.write_back.write()
 
@@ -47,7 +50,6 @@ class Processor:
 
             if not flags.pipeline:
                 self.clock.tick()
-
 
             # only memory and wb can happen after a halt has been executed
             if not halted:
@@ -64,10 +66,13 @@ class Processor:
                 # if there has been a branch or HALT instruction, throw away the fetched instruction
                 # so that it isn't decoded on the next cycle
                 if pc_changed or halted:
+                    # the decoded result would be the instruction in the IR which now needs to be abandoned
                     self.control_unit.update_ir(None)
+                    self.control_unit.decode()
+
                     num_mispredicts += 1 if pc_changed else 0
                     continue
-                # the decoded result would be the instruction in the IR which now needs to be abandoned
+
                 else:
                     self.control_unit.decode()
                     if not flags.pipeline:
@@ -93,5 +98,5 @@ class Processor:
             )
 
         print(f"Executed {inst_count} instructions in {self.clock.get_time()} cycles")
-        print(f"Instructions per cycle: {inst_count / self.clock.get_time()}")
+        print(f"Cycles per Instructions: {self.clock.get_time() / inst_count}")
         print(f"Branch mispredicts: {num_mispredicts}")

@@ -1,2 +1,3 @@
 pipeline = True
-rename_registers = False
+rename_registers = True
+forward_results = True
