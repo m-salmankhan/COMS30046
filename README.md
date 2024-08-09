@@ -17,6 +17,7 @@ The speed is a delay after each `tick()`, to give you time to read the output. D
 - Properly document ISA
 - Fix output mechanism
   - Instead of printing new lines to terminal, make it replace what was on screen.
+- Add OOO
 - Make superscalar T_T
 
 ## ISA
