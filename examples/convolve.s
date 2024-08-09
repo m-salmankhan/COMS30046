@@ -1,3 +1,4 @@
+; NONE OF THIS WORKS >,>
 ; Initialize the base addresses
 LDWIC R0 matrix   ; Load base address of matrix into R0
 LDWIC R1 kernel   ; Load base address of kernel into R1
