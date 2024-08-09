@@ -14,13 +14,9 @@ The speed is a delay after each `tick()`, to give you time to read the output. D
 ## To-do: 
 - Make more complex programs to use as benchmarks
 - Simulate a source of entropy to add RNG instruction for encryption algorithms
-- Clean up ISA
-  - `LDWIC` (Load Word Constant Immediate) should just be MOV. LOAD instructions should be reserved for those accessing memory.
 - Properly document ISA
 - Fix output mechanism
   - Instead of printing new lines to terminal, make it replace what was on screen.
-  - Also output the number of ticks that passed by the time that `HALT` was executed.
-- Add measures for fixing data hazards
 - Make superscalar T_T
 
 ## ISA
