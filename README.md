@@ -12,7 +12,9 @@ python main.py [/path/to/assembly/file/] -s [speed]
 The speed is a delay after each `tick()`, to give you time to read the output. Default: 0
 
 ## To-do: 
-- Make more complex programs to use as benchmarks
+- Make more complex programs to use as benchmarks:
+  - Gaussian blur with CONV2D - has nested loops so good to test branch prediction. Also has real data dependencies that would benefit from result forwarding. Also really important for AI inference, so is a nice "real-life" benchmark
+  - Sorting algorithm
 - Simulate a source of entropy to add RNG instruction for encryption algorithms
 - Properly document ISA
 - Fix output mechanism
